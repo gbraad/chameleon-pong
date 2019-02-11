@@ -7,6 +7,7 @@ use IEEE.numeric_std.ALL;
 entity scorecounter is
 	port(
 		clk : in std_logic;
+		ena : in std_logic;
 		clear : in std_logic;
 		counter : out unsigned(7 downto 0)
 	);
@@ -19,14 +20,16 @@ begin
 	begin
 		counter <= cnt;
 		if rising_edge(clk) then
-			if(cnt(3 downto 0) = "1001") then
-				cnt <= (cnt and "11110000") + "00010000";
-			else
-				cnt <= cnt+"00000001";
+			if(ena='1') then
+				if(cnt(3 downto 0) = "1001") then
+					cnt <= (cnt and "11110000") + "00010000";
+				else
+					cnt <= cnt+"00000001";
+				end if;
 			end if;
-		end if;
-		if clear='1' then
-			cnt <= "00000000";
+			if clear='1' then
+				cnt <= "00000000";
+			end if;
 		end if;
 	end process;
 

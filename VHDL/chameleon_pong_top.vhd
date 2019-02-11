@@ -459,13 +459,15 @@ port map (
 
 	scorecounter1 : entity work.scorecounter
 	port map (
-		clk => ball_goal_p1,
+		clk => sysclk,
+		ena => ball_goal_p1,
 		counter => score_p1,
 		clear => clear_scores
 	);
 	scorecounter2 : entity work.scorecounter
 	port map (
-		clk => ball_goal_p2,
+		clk => sysclk,
+		ena => ball_goal_p2,
 		counter => score_p2,
 		clear => clear_scores
 	);
@@ -627,7 +629,8 @@ port map (
 -- VGADither
 	vgadithering : entity work.vgadither
 		port map (
-			pixelclock => end_of_pixel,
+			clk => sysclk,
+			ena => end_of_pixel,
 			X => currentX(9 downto 0),
 			Y => currentY(9 downto 0),
 			VSync => vsync,
@@ -656,6 +659,9 @@ port map (
 		if reset='1' then
 			gamestate <= GAME_INIT;
 		elsif rising_edge(sysclk) then
+			ball_goal_p1<= '0';
+			ball_goal_p2<= '0';
+
 			if end_of_pixel = '1' then
 
 				-- Avoid concurrency problems by detecting collisions at a different time
@@ -755,7 +761,7 @@ port map (
 							ball_x <= TO_SIGNED(11*8,14);
 							ball_y <= player1_y;
 							ball_vel_y <= player1_y(12 downto 6) - TO_SIGNED(30,10);
-							ball_goal_p1<= '0';
+							--ball_goal_p1<= '0';
 							if(mouse_left_button = '1' or ((player1_active = false) and (pause_ctr = 0))) then
 								ball_vel_x <= TO_SIGNED(-20,10);
 								gamestate <= GAME_ON;
@@ -768,7 +774,6 @@ port map (
 							ball_x <= TO_SIGNED(626*8,14);
 							ball_y <= player2_y;
 							ball_vel_y <= player2_y(12 downto 6) - TO_SIGNED(30,10);
-							ball_goal_p2<= '0';
 							if(mouse2_left_button = '1' or ((player2_active = false) and (pause_ctr = 0))) then
 								ball_vel_x <= TO_SIGNED(20,10);
 								gamestate <= GAME_ON;
@@ -798,7 +803,7 @@ port map (
 					end case;
 				end if;
 				
-				if (currentX=3) and (currentY=0) then
+				if (currentX=3) and (currentY=0) and (gamestate=GAME_ON) then
 					-- Detect collisions
 					-- Left paddle:
 					if(ball_x(13 downto 3)<11) and (abs(ball_y(13 downto 3)-player1_y(13 downto 3))<23) then

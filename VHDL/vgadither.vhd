@@ -4,7 +4,8 @@ use IEEE.numeric_std.ALL;
 
 entity vgadither is
 	port (
-		pixelclock : in std_logic;
+		clk : in std_logic;
+		ena : in std_logic;
 		X : in unsigned(9 downto 0);
 		Y : in unsigned(9 downto 0);
 		VSync : in std_logic;
@@ -23,44 +24,49 @@ architecture rtl of vgadither is
 	signal red : unsigned(7 downto 0);
 	signal green : unsigned(7 downto 0);
 	signal blue : unsigned(7 downto 0);
+	signal vs_r : std_logic;
 begin
 
 	oRed <= red(7 downto 3);
 	oGreen <= green(7 downto 3);
 	oBlue <= blue(7 downto 3);
 
-	process(VSync,field)
+	process(clk,VSync,field)
 	begin
-		if rising_edge(VSync) then
-			field <= field+1;
+		if rising_edge(clk) then
+			vs_r<=vSync;
+			if vSync='1' and vs_r='0' then
+				field <= field+1;
+			end if;
 		end if;
 	end process;
 	
-	process(pixelclock,iRed,iGreen,iBlue,X,Y,field)
+	process(clk,iRed,iGreen,iBlue,X,Y,field)
 	begin
-		if(rising_edge(pixelclock)) then
+		if(rising_edge(clk)) then
+			if ena='1' then
 		
-			if iRed(7 downto 3)="11111" or enable='0' then
-				red <= iRed;
-			else
-				red <= iRed + ((field(0) xor Y(0)) & (X(0) xor Y(0)) & "0");
---				red <= iRed + (dither(0) & "00");
-			end if;
-			
-			if iGreen(7 downto 3)="11111" or enable='0' then
-				green <= iGreen;
-			else
-				green <= iGreen + ((field(0) xor Y(0)) & (X(0) xor Y(0)) & "0");
---				green <= iGreen + (dither(1) & "00");
-			end if;
+				if iRed(7 downto 3)="11111" or enable='0' then
+					red <= iRed;
+				else
+					red <= iRed + ((field(0) xor Y(0)) & (X(0) xor Y(0)) & "0");
+	--				red <= iRed + (dither(0) & "00");
+				end if;
+				
+				if iGreen(7 downto 3)="11111" or enable='0' then
+					green <= iGreen;
+				else
+					green <= iGreen + ((field(0) xor Y(0)) & (X(0) xor Y(0)) & "0");
+	--				green <= iGreen + (dither(1) & "00");
+				end if;
 
-			if iBlue(7 downto 3)="11111" or enable='0' then
-				blue <= iBlue;
-			else
-				blue <= iBlue + ((field(0) xor Y(0)) & (X(0) xor Y(0)) & "0");
---				blue <= iBlue + (dither(1) & "00");
+				if iBlue(7 downto 3)="11111" or enable='0' then
+					blue <= iBlue;
+				else
+					blue <= iBlue + ((field(0) xor Y(0)) & (X(0) xor Y(0)) & "0");
+	--				blue <= iBlue + (dither(1) & "00");
+				end if;
 			end if;
-			
 		end if;
 	end process;
 end architecture;
