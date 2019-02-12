@@ -39,8 +39,8 @@ set_time_format -unit ns -decimal_places 3
 #**************************************************************
 
 create_clock -name {clk8} -period 125.000 -waveform { 0.000 62.500 } [get_ports {clk8}]
-create_clock -name {video_vga_master:myVgaMaster|newPixel} -period 40.000 -waveform { 0.000 0.500 } [get_registers {video_vga_master:myVgaMaster|newPixel}]
-create_clock -name {video_vga_master:myVgaMaster|vSync} -period 16666.000 -waveform { 0.000 0.500 } [get_registers {video_vga_master:myVgaMaster|vSync}]
+#create_clock -name {video_vga_master:myVgaMaster|newPixel} -period 40.000 -waveform { 0.000 0.500 } [get_registers {video_vga_master:myVgaMaster|newPixel}]
+#create_clock -name {video_vga_master:myVgaMaster|vSync} -period 16666.000 -waveform { 0.000 0.500 } [get_registers {video_vga_master:myVgaMaster|vSync}]
 create_clock -name {usart_clk} -period 125.000 -waveform { 0.000 0.500 } [get_ports {usart_clk}]
 
 
@@ -68,13 +68,19 @@ derive_clock_uncertainty
 # Set Input Delay
 #**************************************************************
 
+set_input_delay -clock { pllInstance|altpll_component|auto_generated|pll1|clk[0] } .5 [get_ports *mux_q*]
+set_input_delay -clock { pllInstance|altpll_component|auto_generated|pll1|clk[0] } .5 [get_ports {usart_rts usart_cts}]
 
 
 #**************************************************************
 # Set Output Delay
 #**************************************************************
 
-
+set_output_delay -clock { pllInstance|altpll_component|auto_generated|pll1|clk[0] } .5 [get_ports {mux[*] mux_d[*]}]
+set_output_delay -clock { pllInstance|altpll_component|auto_generated|pll1|clk[0] } .5 [get_ports {red[*] grn[*] blu[*]}]
+set_output_delay -clock { pllInstance|altpll_component|auto_generated|pll1|clk[0] } .5 [get_ports {sigma*}]
+set_output_delay -clock { pllInstance|altpll_component|auto_generated|pll1|clk[0] } .5 [get_ports {n*Sync}]
+set_output_delay -clock { pllInstance|altpll_component|auto_generated|pll1|clk[0] } .5 [get_ports {mux_clk}]
 
 #**************************************************************
 # Set Clock Groups

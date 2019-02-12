@@ -21,7 +21,7 @@ entity segmentdisplay is
 		digit : in unsigned(3 downto 0);
 		xpos : in unsigned(11 downto 0);
 		ypos : in unsigned(11 downto 0);
-		draw : out boolean
+		draw : out std_logic
 	);
 end entity;
 
@@ -69,21 +69,21 @@ begin
 		dx <= xpos-lft;
 		dy <= ypos-top;
 		if(not((trans and "0000001")="0000000") and (dx>=0) and (dx<=20) and (dy<=4)) then
-			draw <= true;
+			draw <= '1';
 		elsif(not((trans and "0000010")="0000000") and (dx<=4) and (dy<=20)) then
-			draw <= true;
+			draw <= '1';
 		elsif(not((trans and "0000100")="0000000") and (dx>=16) and(dx<=20) and (dy<=20)) then
-			draw <= true;
+			draw <= '1';
 		elsif(not((trans and "0001000")="0000000") and (dx>=0) and (dx<=20) and (dy>=18) and (dy<=22)) then
-			draw <= true;
+			draw <= '1';
 		elsif(not((trans and "0010000")="0000000") and (dx<=4) and (dy>=20) and  (dy<=40)) then
-			draw <= true;
+			draw <= '1';
 		elsif(not((trans and "0100000")="0000000") and (dx>=16) and(dx<=20) and (dy>=20) and (dy<=40)) then
-			draw <= true;
+			draw <= '1';
 		elsif(not((trans and "1000000")="0000000") and (dx>=0) and (dx<=20) and (dy>=36) and (dy<=40)) then
-			draw <= true;
+			draw <= '1';
 		else
-			draw <= false;
+			draw <= '0';
 		end if;
 	end process;
 

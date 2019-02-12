@@ -76,8 +76,7 @@ end entity;
 -- -----------------------------------------------------------------------
 
 architecture rtl of chameleon_pong_top is
-	type gamestate_t is (GAME_SERVEP1, GAME_SERVEP2, GAME_ON, GAME_INIT, GAME_WON_P1, GAME_WON_P2, GAME_JOIN_P1, GAME_JOIN_P2);
-	
+
 -- System clocks
 	signal sysclk : std_logic;
 	signal clk_150 : std_logic;
@@ -94,6 +93,7 @@ architecture rtl of chameleon_pong_top is
 -- Global signals
 	signal reset : std_logic;
 	signal end_of_pixel : std_logic;
+	signal end_of_frame : std_logic;
 
 -- MUX
 	signal mux_clk_reg : std_logic := '0';
@@ -162,10 +162,15 @@ architecture rtl of chameleon_pong_top is
 	signal wblu : unsigned(7 downto 0);
 
 
-	signal drawdigit0 : boolean;
-	signal drawdigit1 : boolean;
-	signal drawdigit2 : boolean;
-	signal drawdigit3 : boolean;
+	signal drawdigit0 : std_logic;
+	signal drawdigit1 : std_logic;
+	signal drawdigit2 : std_logic;
+	signal drawdigit3 : std_logic;
+
+	signal drawdigit0_r : std_logic;
+	signal drawdigit1_r : std_logic;
+	signal drawdigit2_r : std_logic;
+	signal drawdigit3_r : std_logic;
 
 -- Sound
 	signal beep_period_l : unsigned(15 downto 0);
@@ -197,7 +202,10 @@ architecture rtl of chameleon_pong_top is
 	signal score_p2 : unsigned(7 downto 0) := "00000000";  -- life easy for the segment display!
 	signal score_p2_shade : unsigned(7 downto 0);
 
+	type gamestate_t is (GAME_SERVEP1, GAME_SERVEP2, GAME_ON, GAME_INIT, GAME_WON_P1, GAME_WON_P2, GAME_JOIN_P1, GAME_JOIN_P2);
 	signal gamestate : gamestate_t := GAME_INIT;
+	type gamelogic_t is (IDLE,BOUNCE,PADDLE,BALL,COLLISIONS);
+	signal gamelogic : gamelogic_t := IDLE;
 
 begin
 	nHSync <= not hsync;
@@ -489,7 +497,7 @@ port map (
 
 			endOfPixel => end_of_pixel,
 			endOfLine => open,
-			endOfFrame => open,
+			endOfFrame => end_of_frame,
 			currentX => currentX,
 			currentY => currentY,
 
@@ -626,6 +634,16 @@ port map (
 			draw => drawdigit3
 		);
 		
+	process(sysclk)
+	begin
+		if rising_edge(sysclk) then
+			drawdigit0_r<=drawdigit0;
+			drawdigit1_r<=drawdigit1;
+			drawdigit2_r<=drawdigit2;
+			drawdigit3_r<=drawdigit3;
+		end if;
+	end process;
+	
 -- VGADither
 	vgadithering : entity work.vgadither
 		port map (
@@ -662,14 +680,14 @@ port map (
 			ball_goal_p1<= '0';
 			ball_goal_p2<= '0';
 
-			if end_of_pixel = '1' then
+			-- Nested state machines to handle game logic.
 
-				-- Avoid concurrency problems by detecting collisions at a different time
-				-- from updating ball position.
-				-- We essentially use a simple sequential state machine with the state
-				-- determined by the horizonal pixel position on the top row.
-
-				if (currentX=0) and (currentY=0) then
+			case gamelogic is
+				when IDLE =>
+					if end_of_frame = '1' then
+						gamelogic<=BOUNCE;
+					end if;
+				when BOUNCE =>
 					-- React to collisions by inverting either the horizontal or vertical
 					-- component of the ball's velocity.
 					-- When the ball hits a paddle we make the Y component dependent upon
@@ -697,10 +715,11 @@ port map (
 						ball_col_bottom <= '0';
 					end if;
 					
-					pause_ctr <= pause_ctr-1;		
-				end if;
-				
-				if(currentX=1) and (currentY=0) then
+					pause_ctr <= pause_ctr-1;
+					
+					gamelogic<=PADDLE;
+
+				when PADDLE =>
 					-- Update paddle position
 					-- If a player clicks the left mouse button they can join the game...
 					if player1_active = false and mouse_left_button = '1' then
@@ -735,11 +754,11 @@ port map (
 							player2_y <= player2_y + 32;
 						end if;
 					end if;
-				end if;
-				
-				-- Update ball position
-				if(currentX=2) and (currentY=0) then
 
+					gamelogic <= BALL;
+
+				when BALL =>
+				-- Update ball position
 					case gamestate is
 						when GAME_JOIN_P1 =>
 							if(mouse_left_button='0') then
@@ -801,39 +820,44 @@ port map (
 							player1_active <= false;
 							player2_active <= false;
 					end case;
-				end if;
-				
-				if (currentX=3) and (currentY=0) and (gamestate=GAME_ON) then
-					-- Detect collisions
-					-- Left paddle:
-					if(ball_x(13 downto 3)<11) and (abs(ball_y(13 downto 3)-player1_y(13 downto 3))<23) then
-						ball_col_left <= '1';
-					elsif (ball_x(13 downto 3)<2) then
-						ball_goal_p2 <= '1';
-						gamestate <= GAME_SERVEP2;
-						pause_ctr <= TO_UNSIGNED(90,10);
-					end if;
+					gamelogic <= COLLISIONS;
 
-					-- Right paddle:
-					if(ball_x(13 downto 3)>626) and (abs(ball_y(13 downto 3)-player2_y(13 downto 3))<23) then
-						ball_col_right <= '1';
-					elsif (ball_x(13 downto 3)>637) then 
-						ball_goal_p1 <= '1';
-						gamestate <= GAME_SERVEP1;
-						pause_ctr <= TO_UNSIGNED(90,10);
+				when COLLISIONS =>
+					if (gamestate=GAME_ON) then
+						-- Detect collisions
+						-- Left paddle:
+						if(ball_x(13 downto 3)<11) and (abs(ball_y(13 downto 3)-player1_y(13 downto 3))<23) then
+							ball_col_left <= '1';
+						elsif (ball_x(13 downto 3)<2) then
+							ball_goal_p2 <= '1';
+							gamestate <= GAME_SERVEP2;
+							pause_ctr <= TO_UNSIGNED(90,10);
+						end if;
+
+						-- Right paddle:
+						if(ball_x(13 downto 3)>626) and (abs(ball_y(13 downto 3)-player2_y(13 downto 3))<23) then
+							ball_col_right <= '1';
+						elsif (ball_x(13 downto 3)>637) then 
+							ball_goal_p1 <= '1';
+							gamestate <= GAME_SERVEP1;
+							pause_ctr <= TO_UNSIGNED(90,10);
+						end if;
+						
+						-- Top and bottom edge...
+						if(ball_y(13 downto 3)<2) then
+							ball_col_top <= '1';
+						end if;
+
+						if (ball_y(13 downto 3)>477) then
+							ball_col_bottom <= '1';
+						end if;
+
 					end if;
+					gamelogic <=IDLE;
 					
-					-- Top and bottom edge...
-					if(ball_y(13 downto 3)<2) then
-						ball_col_top <= '1';
-					end if;
-
-					if (ball_y(13 downto 3)>477) then
-						ball_col_bottom <= '1';
-					end if;
-
-				end if;
+			end case;
 			
+			if end_of_pixel = '1' then
 
 				bg := unsigned((currentX(5 downto 1) xor currentY(5 downto 1)) and "01000");
 				wred <= bg & "000";
@@ -862,12 +886,12 @@ port map (
 				end if;
 				
 			-- Draw scores
-				if drawdigit0 or drawdigit1 then
+				if drawdigit0_r='1' or drawdigit1_r='1' then
 					wred <= score_p1_shade;
 					wgrn <= score_p1_shade;
 					wblu <= score_p1_shade;
 				end if;
-				if drawdigit2 or drawdigit3 then
+				if drawdigit2_r='1' or drawdigit3_r='1' then
 					wred <= score_p2_shade;
 					wgrn <= score_p2_shade;
 					wblu <= score_p2_shade;
